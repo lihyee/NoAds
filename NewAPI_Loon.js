@@ -1,11 +1,16 @@
 /******************************
-脚本功能：通用签到（适配所有NewAPI源码搭建的中转站）- Loon版
+脚本功能：通用签到（适配所有 NewAPI 源码搭建的中转站）- Loon版
 更新时间：2026-04-20
-使用说明：先抓包一次保存 Cookie，再由定时任务自动签到（按域名分别保存，多站点可共用同一脚本）。
+使用说明：
+1. 先抓包一次 /api/user/self 保存 Cookie 和 new-api-user
+2. 再由定时任务自动签到
+3. 按域名、账号分别保存
+4. 自动记录抓取状态与签到结果
 *******************************/
 
 const HEADER_KEY_PREFIX = "UniversalCheckin_Headers";
 const HOSTS_LIST_KEY = "UniversalCheckin_HostsList";
+const STATUS_KEY_PREFIX = "UniversalCheckin_Status";
 const isGetHeader = typeof $request !== "undefined";
 
 const NEED_KEYS = [
@@ -41,6 +46,27 @@ function writeStore(value, key) {
     return $persistentStore.write(value, key);
   } catch (_) {
     return false;
+  }
+}
+
+function nowTime() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function statusKeyForHost(host, account) {
+  return `${STATUS_KEY_PREFIX}:${host}:${account || ""}`;
+}
+
+function saveStatus(host, account, patch) {
+  try {
+    const key = statusKeyForHost(host, account);
+    const old = safeJsonParse(readStore(key)) || {};
+    const next = Object.assign({}, old, patch);
+    writeStore(JSON.stringify(next), key);
+  } catch (e) {
+    console.log("[NewAPI] Error saving status:", e);
   }
 }
 
@@ -100,7 +126,9 @@ function getAccountsForHost(host) {
 function pickNeedHeaders(src = {}) {
   const dst = {};
   const lowerMap = {};
-  for (const k of Object.keys(src || {})) lowerMap[String(k).toLowerCase()] = src[k];
+  for (const k of Object.keys(src || {})) {
+    lowerMap[String(k).toLowerCase()] = src[k];
+  }
   const get = (name) => src[name] ?? lowerMap[String(name).toLowerCase()];
   for (const k of NEED_KEYS) {
     const v = get(k);
@@ -170,7 +198,6 @@ function notifyTitleForHost(host, account) {
       .replace(/^api[-_]/i, "");
     siteName = name.toUpperCase() || host.toUpperCase();
   } catch (_) {}
-
   return account && account.trim() ? `${siteName}(${account})` : siteName;
 }
 
@@ -208,12 +235,31 @@ if (isGetHeader) {
   const account = (picked["new-api-user"] || "").trim();
   const key = headerKeyForHost(host, account);
   const ok = writeStore(JSON.stringify(picked), key);
+
   if (ok) {
     addHostToList(host);
-    if (account) {
-      addAccountToHost(host, account);
-    }
+    if (account) addAccountToHost(host, account);
+    saveStatus(host, account, {
+      host,
+      account,
+      headerCaptured: true,
+      hasCookie: Boolean(picked.Cookie),
+      hasNewApiUser: Boolean(picked["new-api-user"]),
+      lastCaptureTime: nowTime(),
+      lastCaptureOk: true
+    });
+  } else {
+    saveStatus(host, account, {
+      host,
+      account,
+      headerCaptured: false,
+      hasCookie: Boolean(picked.Cookie),
+      hasNewApiUser: Boolean(picked["new-api-user"]),
+      lastCaptureTime: nowTime(),
+      lastCaptureOk: false
+    });
   }
+
   const title = notifyTitleForHost(host, account);
   console.log(`[NewAPI] ${title} | 参数保存 | 已保存 ${Object.keys(picked).length} 个字段`);
 
@@ -241,7 +287,18 @@ if (isGetHeader) {
   const doCheckin = async (host, account = "") => {
     const key = headerKeyForHost(host, account);
     const raw = readStore(key);
+
     if (!raw) {
+      saveStatus(host, account, {
+        host,
+        account,
+        headerCaptured: false,
+        lastCheckinTime: nowTime(),
+        lastCheckinSuccess: false,
+        lastCheckinMessage: "缺少参数，请先抓包保存 /api/user/self 请求头",
+        lastCheckinStatusCode: 0
+      });
+
       $notification.post(
         notifyTitleForHost(host, account),
         "缺少参数",
@@ -252,6 +309,15 @@ if (isGetHeader) {
 
     const savedHeaders = safeJsonParse(raw);
     if (!savedHeaders) {
+      saveStatus(host, account, {
+        host,
+        account,
+        lastCheckinTime: nowTime(),
+        lastCheckinSuccess: false,
+        lastCheckinMessage: "已保存的请求头解析失败，请重新抓包保存",
+        lastCheckinStatusCode: 0
+      });
+
       $notification.post(
         notifyTitleForHost(host, account),
         "参数异常",
@@ -298,14 +364,26 @@ if (isGetHeader) {
       const logMsg = `[NewAPI] ${title} | ${statusText} | ${checkinDate ? `${checkinDate}` : ""}${quotaAwarded ? ` | 获得:${quotaAwarded}` : ""}${message ? ` | ${message}` : ""}`.trim();
       console.log(logMsg);
 
+      saveStatus(host, account, {
+        host,
+        account,
+        headerCaptured: true,
+        hasCookie: Boolean(savedHeaders.Cookie),
+        hasNewApiUser: Boolean(savedHeaders["new-api-user"]),
+        lastCheckinTime: nowTime(),
+        lastCheckinSuccess: Boolean(success),
+        lastCheckinMessage: message || body || (success ? "签到成功" : "签到失败"),
+        lastCheckinStatusCode: status,
+        lastCheckinDate: checkinDate || "",
+        lastQuotaAwarded: quotaAwarded || ""
+      });
+
       if (status === 401 || status === 403) {
         $notification.post(title, "登录失效", `HTTP ${status}，请重新抓包保存 Cookie。\n${message || body}`);
       } else if (status >= 200 && status < 300) {
         if (success) {
           let content = checkinDate ? `日期：${checkinDate}` : "签到成功";
-          if (quotaAwarded) {
-            content += `\n获得：${quotaAwarded}`;
-          }
+          if (quotaAwarded) content += `\n获得：${quotaAwarded}`;
           $notification.post(title, "签到成功", content);
         } else {
           $notification.post(title, "签到失败", message || body || `HTTP ${status}`);
@@ -317,6 +395,16 @@ if (isGetHeader) {
       const err = typeof reason === "string" ? reason : JSON.stringify(reason);
       const title = notifyTitleForHost(host, account);
       console.log(`[NewAPI] ${title} | 网络错误 | ${err}`);
+
+      saveStatus(host, account, {
+        host,
+        account,
+        lastCheckinTime: nowTime(),
+        lastCheckinSuccess: false,
+        lastCheckinMessage: err,
+        lastCheckinStatusCode: 0
+      });
+
       $notification.post(title, "网络错误", err);
     }
   };
