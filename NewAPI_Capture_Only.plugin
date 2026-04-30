@@ -1,0 +1,11 @@
+#!name=通用签到(NewAPI)-抓包版
+#!desc=仅用于抓取 /api/user/self 请求头，保存 Cookie 和账号信息；用完建议关闭
+#!author=lihyee
+#!homepage=https://github.com/lihyee/NoAds
+#!icon=https://raw.githubusercontent.com/Toperlock/Quantumult/main/icon/capture.png
+
+[Script]
+http-request ^https:\/\/.*\/api\/user\/self$ script-path=https://raw.githubusercontent.com/lihyee/NoAds/main/NewAPI_Loon.js, requires-body=false, timeout=60, tag=NewAPI参数获取
+
+[MITM]
+hostname = *
