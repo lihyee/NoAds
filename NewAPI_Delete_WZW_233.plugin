@@ -1,8 +1,0 @@
-#!name=删除 NewAPI 账号(wzw.pp.ua-233)
-#!desc=删除 wzw.pp.ua 下账号 233 的已保存数据
-#!author=lihyee
-#!homepage=https://github.com/lihyee/NoAds
-
-[Script]
-cron "0 0 1 1 *" script-path=https://raw.githubusercontent.com/lihyee/NoAds/main/NewAPI_Delete_Loon.js, timeout=60, tag=删除 wzw.pp.ua-233, argument=host=wzw.pp.ua
-
