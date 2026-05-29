@@ -87,13 +87,19 @@ for (const host of hosts) {
     lines.push(`抓取成功：${yesNo(status.lastCaptureOk)}`);
     lines.push(`有 Cookie：${yesNo(status.hasCookie)}`);
     lines.push(`有 new-api-user：${yesNo(status.hasNewApiUser)}`);
+    lines.push(`有 CF Cookie：${yesNo(status.hasCloudflareCookie)}`);
     lines.push(`最近抓取：${status.lastCaptureTime || "-"}`);
+    lines.push(`抓取地址：${status.lastCaptureUrl || "-"}`);
     lines.push(`签到状态：${shortResult(status)}`);
     lines.push(`最近签到：${status.lastCheckinTime || "-"}`);
+    lines.push(`最近跳过：${status.lastSkipTime || "-"}`);
+    lines.push(`跳过原因：${status.lastSkipReason || "-"}`);
     lines.push(`状态码：${status.lastCheckinStatusCode !== undefined ? status.lastCheckinStatusCode : "-"}`);
     lines.push(`签到日期：${status.lastCheckinDate || "-"}`);
     lines.push(`获取配额：${status.lastQuotaAwarded || "-"}`);
-    lines.push(`结果信息：${status.lastCheckinMessage ? String(status.lastCheckinMessage).slice(0, 80) : "-"}`);
+    lines.push(`CF 防护：${yesNo(status.cloudflareBlocked)}`);
+    lines.push(`需 Turnstile：${yesNo(status.turnstileRequired)}`);
+    lines.push(`结果信息：${status.lastCheckinMessage ? String(status.lastCheckinMessage).slice(0, 120) : "-"}`);
     lines.push("");
   }
 }
