@@ -1,5 +1,5 @@
 #!name=通用签到(NewAPI)-抓包版-排除linux.do
-#!desc=抓取 /api/user/self 和 /api/user/checkin 请求头，但排除 linux.do / *.linux.do
+#!desc=抓取 /api/user/self 和 /api/user/checkin 请求头，但不 MITM linux.do
 #!author=lihyee
 #!homepage=https://github.com/lihyee/NoAds
 #!icon=https://raw.githubusercontent.com/Toperlock/Quantumult/main/icon/capture.png
@@ -8,4 +8,4 @@
 http-request ^https:\/\/(?![^\/]*linux\.do)[^\/]+\/api\/user\/(?:self|checkin)(?:\?.*)?$ script-path=https://raw.githubusercontent.com/lihyee/NoAds/main/NewAPI_Loon.js, requires-body=false, timeout=60, tag=NewAPI参数获取
 
 [MITM]
-hostname = *
+hostname = -linux.do,-*.linux.do,*
