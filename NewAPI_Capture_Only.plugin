@@ -1,11 +1,11 @@
-#!name=通用签到(NewAPI)-抓包版-排除linux.do
-#!desc=抓取 /api/user/self 和 /api/user/checkin 请求头，但不 MITM linux.do
+#!name=通用签到(NewAPI)-抓包版
+#!desc=抓取 /api/user/self 和 /api/user/checkin 请求头，保存 Cookie/new-api-user；CF/Turnstile 站点请先手动通过验证后再抓
 #!author=lihyee
 #!homepage=https://github.com/lihyee/NoAds
 #!icon=https://raw.githubusercontent.com/Toperlock/Quantumult/main/icon/capture.png
 
 [Script]
-http-request ^https:\/\/(?![^\/]*linux\.do)[^\/]+\/api\/user\/(?:self|checkin)(?:\?.*)?$ script-path=https://raw.githubusercontent.com/lihyee/NoAds/main/NewAPI_Loon.js, requires-body=false, timeout=60, tag=NewAPI参数获取
+http-request ^https:\/\/.*\/api\/user\/(?:self|checkin)(?:\?.*)?$ script-path=https://raw.githubusercontent.com/lihyee/NoAds/main/NewAPI_Loon.js, requires-body=false, timeout=60, tag=NewAPI参数获取
 
 [MITM]
-hostname = -linux.do,-*.linux.do,*
+hostname = *, -linux.do, -*.linux.do
